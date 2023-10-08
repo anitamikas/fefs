@@ -1,4 +1,5 @@
 const express = require("express");
+const { get } = require("express/lib/response");
 const server = require("http").createServer();
 const app = express();
 
@@ -9,6 +10,16 @@ app.get("/", function (req, res) {
 server.on("request", app);
 server.listen(3000, function () {
   console.log("Server started on port 3000");
+});
+
+process.on("SIGINT", () => {
+  console.log("sigint");
+  wss.clients.forEach(function each(client) {
+    client.close();
+  });
+  server.close(() => {
+    shutdownDB();
+  });
 });
 
 /** Begin websockets */
@@ -26,6 +37,10 @@ wss.on("connection", function connection(ws) {
     ws.send("Welcome to my server");
   }
 
+  db.run(
+    `INSERT INTO visitors (count, time) VALUES (${numClients}, datetime("now"))`
+  );
+
   ws.on("close", function () {
     wss.broadcast(`Current visitors: ${numClients}`);
     console.log("A client has disconnected");
@@ -37,3 +52,33 @@ wss.broadcast = function broadcast(data) {
     client.send(data);
   });
 };
+
+/** End websockets */
+/** Begin database */
+const sqlite = require("sqlite3");
+const db = new sqlite.Database(":memory:");
+// we could do here not to memory but to file
+// when we use memory everytime we restsrt the server we lose the data
+// so we cearte it each time from scratch
+// const db = new sqlite.Database("./fsfe.db");
+
+db.serialize(() => {
+  db.run(`
+  CREATE TABLE visitors(
+    count INTEGER,
+    time TEXT
+  )
+  `);
+});
+
+function getCounts() {
+  db.each("SELECT * FROM visitors", function (err, row) {
+    console.log(row);
+  });
+}
+
+function shutdownDB() {
+  console.log("Shutting down database connection");
+  getCounts();
+  db.close();
+}
