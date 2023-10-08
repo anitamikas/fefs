@@ -1,8 +1,10 @@
-const http = require('http');
+const http = require("http");
 
-http.createServer(function(req, res) {
-res.write("On the way to being fs engineer");
-	res.end();
-}).listen(3000);
+http
+  .createServer(function (req, res) {
+    res.write("Work in progress");
+    res.end();
+  })
+  .listen(3000);
 
 console.log("Server started on port 3000");
